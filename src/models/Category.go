@@ -26,6 +26,12 @@ func SelectCategoryById(id int) *Category {
 	return &category
 }
 
+func SelectCategoryBySlug(slug string) *Category {
+	var category Category
+	configs.DB.Preload("Products").First(&category, "slug = ?", slug)
+	return &category
+}
+
 func CreateCategory(category *Category) error {
 	result := configs.DB.Create(&category)
 	return result.Error

@@ -19,12 +19,11 @@ func SellerRegister(c *fiber.Ctx) error {
 	}
 
 	if err := c.BodyParser(&registrationData); err != nil {
-		c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 			"status":     "bad request",
 			"statusCode": 400,
 			"message":    "Invalid request body",
 		})
-		return err
 	}
 
 	if reflect.TypeOf(registrationData.Name).Kind() != reflect.String {
@@ -56,7 +55,16 @@ func SellerRegister(c *fiber.Ctx) error {
 			"message":    "Email cannot be empty",
 		})
 	} else {
-		newUser.Email = registrationData.Email
+		existingUser := models.SelectUserbyEmail(registrationData.Email)
+		if existingUser.ID != 0 {
+			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+				"status":     "bad request",
+				"statusCode": 400,
+				"message":    "Email already exists",
+			})
+		} else {
+			newUser.Email = registrationData.Email
+		}
 	}
 
 	if registrationData.Phone == "" {
@@ -137,6 +145,8 @@ func GetSellers(c *fiber.Ctx) error {
 				"updated_at":    product.UpdatedAt,
 				"name":          product.Name,
 				"price":         product.Price,
+				"size":          product.Size,
+				"color":         product.Color,
 				"photo":         product.URLImage,
 				"rating":        product.Rating,
 				"category_name": categoryName,
@@ -166,7 +176,7 @@ func GetSellers(c *fiber.Ctx) error {
 	})
 }
 
-func GetSellerProfile(c *fiber.Ctx) error {
+func GetDetailSeller(c *fiber.Ctx) error {
 	// masih id karena belum ada token/auth
 	id, err := strconv.Atoi(c.Params("id"))
 	if err != nil {
@@ -210,6 +220,8 @@ func GetSellerProfile(c *fiber.Ctx) error {
 			"updated_at":    product.UpdatedAt,
 			"name":          product.Name,
 			"price":         product.Price,
+			"size":          product.Size,
+			"color":         product.Color,
 			"photo":         product.URLImage,
 			"rating":        product.Rating,
 			"category_name": categoryName,
@@ -305,7 +317,17 @@ func UpdateSellerProfile(c *fiber.Ctx) error {
 			"message":    "Email cannot be empty",
 		})
 	} else if profileData.Email != seller.User.Email {
-		updatedUser.Email = profileData.Email
+		existingUser := models.SelectUserbyEmail(profileData.Email)
+		if existingUser.ID != 0 {
+			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+				"status":     "bad request",
+				"statusCode": 400,
+				"message":    "Email already exists",
+			})
+		} else {
+			updatedUser.Email = profileData.Email
+		}
+
 		if err := models.UpdateUser(int(seller.User.ID), &updatedUser); err != nil {
 			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 				"status":     "server error",

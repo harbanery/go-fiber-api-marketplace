@@ -25,6 +25,12 @@ func SelectUserById(id int) *User {
 	return &user
 }
 
+func SelectUserbyEmail(email string) *User {
+	var user User
+	configs.DB.First(&user, "email = ?", email)
+	return &user
+}
+
 func CreateUser(user *User) (uint, error) {
 	result := configs.DB.Create(&user)
 	return user.ID, result.Error

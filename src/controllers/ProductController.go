@@ -5,6 +5,9 @@ import (
 	"gofiber-marketplace/src/models"
 	"reflect"
 	"strconv"
+	"strings"
+
+	// "strings"
 
 	"github.com/gofiber/fiber/v2"
 )
@@ -33,7 +36,10 @@ func GetAllProduct(c *fiber.Ctx) error {
 			"photo":         product.URLImage,
 			"rating":        product.Rating,
 			"price":         product.Price,
+			"size":          product.Size,
+			"color":         product.Color,
 			"stock":         product.Stock,
+			"condition":     product.Condition,
 			"desc":          product.Description,
 		}
 	}
@@ -77,7 +83,10 @@ func GetDetailProduct(c *fiber.Ctx) error {
 		"photo":         product.URLImage,
 		"rating":        product.Rating,
 		"price":         product.Price,
+		"size":          product.Size,
+		"color":         product.Color,
 		"stock":         product.Stock,
+		"condition":     product.Condition,
 		"desc":          product.Description,
 	}
 
@@ -140,6 +149,74 @@ func CreateProduct(c *fiber.Ctx) error {
 			"statusCode": 400,
 			"message":    "Product stock cannot be negative",
 		})
+	}
+
+	if _, err := strconv.Atoi(fmt.Sprintf("%d", newProduct.Size)); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"status":     "bad request",
+			"statusCode": 400,
+			"message":    "Product size must be integer",
+		})
+	} else if newProduct.Size <= 0 {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"status":     "bad request",
+			"statusCode": 400,
+			"message":    "Product size cannot be empty or negative",
+		})
+	}
+
+	if reflect.TypeOf(newProduct.Color).Kind() != reflect.String {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"status":     "bad request",
+			"statusCode": 400,
+			"message":    "Product color must be string",
+		})
+	} else if newProduct.Color == "" {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"status":     "bad request",
+			"statusCode": 400,
+			"message":    "Product color cannot be empty",
+		})
+	}
+
+	// rating is meant for customer so no rating validation
+	// if _, err := strconv.Atoi(fmt.Sprintf("%d", newProduct.Rating)); err != nil {
+	// 	return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+	// 		"status":     "bad request",
+	// 		"statusCode": 400,
+	// 		"message":    "Product rating must be integer",
+	// 	})
+	// } else if newProduct.Rating <= 0 {
+	// 	return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+	// 		"status":     "bad request",
+	// 		"statusCode": 400,
+	// 		"message":    "Product rating cannot be empty or negative",
+	// 	})
+	// }
+
+	if reflect.TypeOf(newProduct.Condition).Kind() != reflect.String {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"status":     "bad request",
+			"statusCode": 400,
+			"message":    "Product condition must be string",
+		})
+	}
+
+	if newProduct.Condition == "" {
+		// newProduct.Condition = "new"
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"status":     "bad request",
+			"statusCode": 400,
+			"message":    "Product condition cannot be empty",
+		})
+	} else {
+		if strings.ToLower(string(newProduct.Condition)) != "new" && strings.ToLower(string(newProduct.Condition)) != "used" {
+			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+				"status":     "bad request",
+				"statusCode": 400,
+				"message":    "Product condition not right answer",
+			})
+		}
 	}
 
 	if newProduct.CategoryID != 0 {
@@ -260,6 +337,73 @@ func UpdateProduct(c *fiber.Ctx) error {
 			"statusCode": 400,
 			"message":    "Product stock cannot be negative",
 		})
+	}
+
+	if _, err := strconv.Atoi(fmt.Sprintf("%d", updatedProduct.Size)); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"status":     "bad request",
+			"statusCode": 400,
+			"message":    "Product size must be integer",
+		})
+	} else if updatedProduct.Size <= 0 {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"status":     "bad request",
+			"statusCode": 400,
+			"message":    "Product size cannot be empty or negative",
+		})
+	}
+
+	if reflect.TypeOf(updatedProduct.Color).Kind() != reflect.String {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"status":     "bad request",
+			"statusCode": 400,
+			"message":    "Product color must be string",
+		})
+	} else if updatedProduct.Color == "" {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"status":     "bad request",
+			"statusCode": 400,
+			"message":    "Product color cannot be empty",
+		})
+	}
+
+	// if _, err := strconv.Atoi(fmt.Sprintf("%d", updatedProduct.Rating)); err != nil {
+	// 	return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+	// 		"status":     "bad request",
+	// 		"statusCode": 400,
+	// 		"message":    "Product rating must be integer",
+	// 	})
+	// } else if updatedProduct.Rating <= 0 {
+	// 	return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+	// 		"status":     "bad request",
+	// 		"statusCode": 400,
+	// 		"message":    "Product rating cannot be empty or negative",
+	// 	})
+	// }
+
+	if reflect.TypeOf(updatedProduct.Condition).Kind() != reflect.String {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"status":     "bad request",
+			"statusCode": 400,
+			"message":    "Product condition must be string",
+		})
+	}
+
+	if updatedProduct.Condition == "" {
+		// updatedProduct.Condition = "new"
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"status":     "bad request",
+			"statusCode": 400,
+			"message":    "Product condition cannot be empty",
+		})
+	} else {
+		if strings.ToLower(string(updatedProduct.Condition)) != "new" && strings.ToLower(string(updatedProduct.Condition)) != "used" {
+			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+				"status":     "bad request",
+				"statusCode": 400,
+				"message":    "Product condition not right answer",
+			})
+		}
 	}
 
 	if updatedProduct.CategoryID != 0 {

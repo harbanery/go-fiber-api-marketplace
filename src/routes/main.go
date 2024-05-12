@@ -24,7 +24,7 @@ func Router(app *fiber.App) {
 	// Seller Routes
 	app.Post("/sellers/register", controllers.SellerRegister)
 	app.Get("/sellers", controllers.GetSellers)
-	app.Get("/sellers/profile/:id", controllers.GetSellerProfile)
+	app.Get("/sellers/:id", controllers.GetDetailSeller)
 	app.Put("/sellers/profile/:id", controllers.UpdateSellerProfile)
 	app.Delete("/sellers/profile/:id", controllers.DeleteSeller)
 }

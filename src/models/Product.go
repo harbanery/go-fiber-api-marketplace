@@ -6,18 +6,28 @@ import (
 	"gorm.io/gorm"
 )
 
+type ProductCondition string
+
+const (
+	New  ProductCondition = "new"
+	Used ProductCondition = "used"
+)
+
 type Product struct {
 	gorm.Model
-	Name        string   `json:"name"`
-	Price       float64  `json:"price"`
-	Stock       int      `json:"stock"`
-	URLImage    string   `json:"url_image"`
-	Rating      uint     `json:"rating"`
-	Description string   `json:"description"`
-	CategoryID  uint     `json:"category_id"`
-	Category    Category `gorm:"foreignKey:CategoryID"`
-	SellerID    uint     `json:"seller_id"`
-	Seller      Seller   `gorm:"foreignKey:SellerID"`
+	Name        string           `json:"name"`
+	Price       float64          `json:"price"`
+	Stock       int              `json:"stock"`
+	URLImage    string           `json:"url_image"`
+	Size        uint             `json:"size"`
+	Color       string           `json:"color"`
+	Rating      uint             `json:"rating" gorm:"default:0"`
+	Description string           `json:"description"`
+	Condition   ProductCondition `gorm:"type:product_condition" json:"condition"`
+	CategoryID  uint             `json:"category_id"`
+	Category    Category         `gorm:"foreignKey:CategoryID"`
+	SellerID    uint             `json:"seller_id"`
+	Seller      Seller           `gorm:"foreignKey:SellerID"`
 }
 
 func SelectAllProducts() []*Product {

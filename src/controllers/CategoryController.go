@@ -30,6 +30,8 @@ func GetAllCategories(c *fiber.Ctx) error {
 				"name":       product.Name,
 				"price":      product.Price,
 				"photo":      product.URLImage,
+				"size":       product.Size,
+				"color":      product.Color,
 				"rating":     product.Rating,
 			}
 		}
@@ -81,6 +83,8 @@ func GetCategoryById(c *fiber.Ctx) error {
 			"name":       product.Name,
 			"price":      product.Price,
 			"photo":      product.URLImage,
+			"size":       product.Size,
+			"color":      product.Color,
 			"rating":     product.Rating,
 		}
 	}
@@ -106,12 +110,11 @@ func GetCategoryById(c *fiber.Ctx) error {
 func CreateCategory(c *fiber.Ctx) error {
 	var category models.Category
 	if err := c.BodyParser(&category); err != nil {
-		c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 			"status":     "bad request",
 			"statusCode": 400,
 			"message":    "Invalid request body",
 		})
-		return err
 	}
 
 	if reflect.TypeOf(category.Name).Kind() != reflect.String {
@@ -130,6 +133,15 @@ func CreateCategory(c *fiber.Ctx) error {
 
 	if category.Slug == "" || category.Slug != strings.ReplaceAll(strings.ToLower(category.Name), " ", "") {
 		category.Slug = strings.ReplaceAll(strings.ToLower(category.Name), " ", "")
+	}
+
+	existingCategory := models.SelectCategoryBySlug(category.Slug)
+	if existingCategory.ID != 0 {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"status":     "bad request",
+			"statusCode": 400,
+			"message":    "Category with this name or slug already exists",
+		})
 	}
 
 	if err := models.CreateCategory(&category); err != nil {
@@ -169,12 +181,12 @@ func UpdateCategory(c *fiber.Ctx) error {
 	var updatedCategory models.Category
 
 	if err := c.BodyParser(&updatedCategory); err != nil {
-		c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 			"status":     "bad request",
 			"statusCode": 400,
 			"message":    "Invalid request body",
 		})
-		return err
+
 	}
 
 	if reflect.TypeOf(updatedCategory.Name).Kind() != reflect.String {
@@ -202,6 +214,15 @@ func UpdateCategory(c *fiber.Ctx) error {
 	// slug harus sama dengan nama dengan huruf kecil dan tanpa spasi
 	if updatedCategory.Slug == "" || updatedCategory.Slug != strings.ReplaceAll(strings.ToLower(updatedCategory.Name), " ", "") {
 		updatedCategory.Slug = strings.ReplaceAll(strings.ToLower(updatedCategory.Name), " ", "")
+	}
+
+	existingCategory := models.SelectCategoryBySlug(updatedCategory.Slug)
+	if existingCategory.ID != 0 && existingCategory.ID != updatedCategory.ID {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"status":     "bad request",
+			"statusCode": 400,
+			"message":    "Category with this name or slug already exists",
+		})
 	}
 
 	if err := models.UpdateCategory(id, &updatedCategory); err != nil {
