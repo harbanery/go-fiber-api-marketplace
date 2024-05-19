@@ -10,7 +10,9 @@ func Migration() {
 	configs.DB.AutoMigrate(
 		&models.User{},
 		&models.Seller{},
+		&models.Customer{},
 		&models.Product{},
 		&models.Category{},
+		&models.Address{},
 	)
 }
