@@ -12,7 +12,13 @@ This API is built using the following technologies:
 
 - Air by Cosmtrek: A live reload tool for Go applications, used to automatically rebuild and restart the server during development.
 
-## Installation
+- JWT-Go v5 by golang-jwt: A package for working with JSON Web Tokens (JWT) for authentication.
+
+- Validator v10 by go-playground: A library for validating structs and fields.
+
+- Cloudinary: A cloud service for managing media assets like images and videos.
+
+<!-- ## Installation
 
 1. Clone this repository to your local directory.
 
@@ -32,9 +38,9 @@ This API is built using the following technologies:
 
 Here is a list of available endpoints:
 
-1. Users
+1. Auth
 
-   - GET /users: Get a list of all users.
+   - GET /register: Get a list of all users.
 
    - GET /users/{id}: Get a user by ID.
 
@@ -56,7 +62,19 @@ Here is a list of available endpoints:
 
    - DELETE /sellers/{id}: Delete a seller.
 
-3. Products
+3. Customers
+
+   - GET /sellers: Get a list of all sellers.
+
+   - GET /sellers/{id}: Get a seller by ID.
+
+   - POST /sellers: Add a new seller.
+
+   - PUT /sellers/{id}: Update seller information.
+
+   - DELETE /sellers/{id}: Delete a seller.
+
+4. Products
 
    - GET /products: Get a list of all products.
 
@@ -68,7 +86,7 @@ Here is a list of available endpoints:
 
    - DELETE /products/{id}: Delete a product.
 
-4. Categories
+5. Categories
 
    - GET /categories: Get a list of all categories.
 
@@ -78,7 +96,7 @@ Here is a list of available endpoints:
 
    - PUT /categories/{id}: Update category information.
 
-   - DELETE /categories/{id}: Delete a category.
+   - DELETE /categories/{id}: Delete a category. -->
 
 ## Reference
 
@@ -91,3 +109,7 @@ Feel free if you want to check it out:
 [GoFiber Gitbook by Zaki Maliki](https://zakimaliki.gitbook.io/gofiber)
 
 [Refresh Tokens Auth by Tanveer Hassan](https://medium.com/monstar-lab-bangladesh-engineering/jwt-auth-in-go-part-2-refresh-tokens-d334777ca8a0)
+
+[Jwt-Go](https://github.com/golang-jwt/jwt)
+
+[Validator v10](https://github.com/go-playground/validator)
