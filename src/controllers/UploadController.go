@@ -20,10 +20,10 @@ func UploadFile(c *fiber.Ctx) error {
 
 	maxFileSize := int64(2 << 20) // 2MB
 	if err := helpers.SizeUploadValidation(file.Size, maxFileSize); err != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"status":     "bad request",
-			"statusCode": 400,
-			"message":    "File is too large",
+		return c.Status(fiber.StatusRequestEntityTooLarge).JSON(fiber.Map{
+			"status":     "entity too large",
+			"statusCode": 413,
+			"message":    err.Error(),
 		})
 	}
 
@@ -51,7 +51,7 @@ func UploadFile(c *fiber.Ctx) error {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 			"status":     "bad request",
 			"statusCode": 400,
-			"message":    "Type of file is invalid",
+			"message":    err.Error(),
 		})
 	}
 

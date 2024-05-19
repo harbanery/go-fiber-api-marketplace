@@ -2,6 +2,7 @@ package controllers
 
 import (
 	"gofiber-marketplace/src/helpers"
+	"gofiber-marketplace/src/middlewares"
 	"gofiber-marketplace/src/models"
 	"strconv"
 	"time"
@@ -10,7 +11,7 @@ import (
 )
 
 func GetCustomers(c *fiber.Ctx) error {
-	auth := helpers.UserLocals(c)
+	auth := middlewares.UserLocals(c)
 	if role := auth["role"].(string); role != "customer" {
 		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
 			"status":     "forbidden",
@@ -155,8 +156,8 @@ func UpdateCustomerProfile(c *fiber.Ctx) error {
 		})
 	}
 
-	user := helpers.XSSMiddleware(&profileData).(*CustomerProfile)
-	if errors := helpers.ValidateStruct(user); len(errors) > 0 {
+	user := middlewares.XSSMiddleware(&profileData).(*CustomerProfile)
+	if errors := helpers.StructValidation(user); len(errors) > 0 {
 		return c.Status(fiber.StatusUnprocessableEntity).JSON(fiber.Map{
 			"status":     "unprocessable entity",
 			"statusCode": 422,

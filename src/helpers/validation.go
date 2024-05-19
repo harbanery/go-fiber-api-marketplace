@@ -2,6 +2,7 @@ package helpers
 
 import (
 	"fmt"
+	"net/http"
 	"reflect"
 	"regexp"
 	"strings"
@@ -13,7 +14,7 @@ type ErrorResponse struct {
 	ErrorMessage string `json:"error_message"`
 }
 
-func ValidateStruct(param any) []*ErrorResponse {
+func StructValidation(param any) []*ErrorResponse {
 	var errors []*ErrorResponse
 
 	err := validator.New().Struct(param)
@@ -37,7 +38,7 @@ func ValidateStruct(param any) []*ErrorResponse {
 	return errors
 }
 
-func ValidatePassword(password string, errors []*ErrorResponse) []*ErrorResponse {
+func PasswordValidation(password string, errors []*ErrorResponse) []*ErrorResponse {
 	for _, err := range errors {
 		if strings.Contains(fmt.Sprintf("%s", err), "password") {
 			return errors
@@ -68,4 +69,28 @@ func ValidatePassword(password string, errors []*ErrorResponse) []*ErrorResponse
 	}
 
 	return errors
+}
+
+func SizeUploadValidation(fileSize int64, maxFileSize int64) error {
+	if fileSize > maxFileSize {
+		return fmt.Errorf("file too large")
+	}
+	return nil
+}
+
+func TypeUploadValidation(buffer []byte, validFileTypes []string) error {
+	fileType := http.DetectContentType(buffer)
+	if !isValidFileType(validFileTypes, fileType) {
+		return fmt.Errorf("type of file invalid. only png, jpg, jpeg, and pdf.")
+	}
+	return nil
+}
+
+func isValidFileType(validFileTypes []string, fileType string) bool {
+	for _, validType := range validFileTypes {
+		if validType == fileType {
+			return true
+		}
+	}
+	return false
 }

@@ -2,6 +2,7 @@ package controllers
 
 import (
 	"gofiber-marketplace/src/helpers"
+	"gofiber-marketplace/src/middlewares"
 	"gofiber-marketplace/src/models"
 	"strconv"
 	"strings"
@@ -124,9 +125,9 @@ func CreateCategory(c *fiber.Ctx) error {
 		newCategory.Slug = strings.ReplaceAll(strings.ToLower(newCategory.Name), " ", "")
 	}
 
-	category := helpers.XSSMiddleware(&newCategory).(*models.Category)
+	category := middlewares.XSSMiddleware(&newCategory).(*models.Category)
 
-	if errors := helpers.ValidateStruct(category); len(errors) > 0 {
+	if errors := helpers.StructValidation(category); len(errors) > 0 {
 		return c.Status(fiber.StatusUnprocessableEntity).JSON(fiber.Map{
 			"status":     "unprocessable entity",
 			"statusCode": 422,
@@ -190,9 +191,9 @@ func UpdateCategory(c *fiber.Ctx) error {
 		updatedCategory.Slug = strings.ReplaceAll(strings.ToLower(updatedCategory.Name), " ", "")
 	}
 
-	category := helpers.XSSMiddleware(&updatedCategory).(*models.Category)
+	category := middlewares.XSSMiddleware(&updatedCategory).(*models.Category)
 
-	if errors := helpers.ValidateStruct(category); len(errors) > 0 {
+	if errors := helpers.StructValidation(category); len(errors) > 0 {
 		return c.Status(fiber.StatusUnprocessableEntity).JSON(fiber.Map{
 			"status":     "unprocessable entity",
 			"statusCode": 422,

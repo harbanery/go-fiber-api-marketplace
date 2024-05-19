@@ -2,6 +2,7 @@ package controllers
 
 import (
 	"gofiber-marketplace/src/helpers"
+	"gofiber-marketplace/src/middlewares"
 	"gofiber-marketplace/src/models"
 	"strconv"
 
@@ -52,9 +53,9 @@ func CreateAddress(c *fiber.Ctx) error {
 		})
 	}
 
-	address := helpers.XSSMiddleware(&newAddress).(*models.Address)
+	address := middlewares.XSSMiddleware(&newAddress).(*models.Address)
 
-	if errors := helpers.ValidateStruct(address); len(errors) > 0 {
+	if errors := helpers.StructValidation(address); len(errors) > 0 {
 		return c.Status(fiber.StatusUnprocessableEntity).JSON(fiber.Map{
 			"status":     "unprocessable entity",
 			"statusCode": 422,
@@ -106,9 +107,9 @@ func UpdateAddress(c *fiber.Ctx) error {
 		})
 	}
 
-	address := helpers.XSSMiddleware(&updatedAddress).(*models.Address)
+	address := middlewares.XSSMiddleware(&updatedAddress).(*models.Address)
 
-	if errors := helpers.ValidateStruct(address); len(errors) > 0 {
+	if errors := helpers.StructValidation(address); len(errors) > 0 {
 		return c.Status(fiber.StatusUnprocessableEntity).JSON(fiber.Map{
 			"status":     "unprocessable entity",
 			"statusCode": 422,

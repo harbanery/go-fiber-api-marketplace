@@ -3,6 +3,7 @@ package controllers
 import (
 	"fmt"
 	"gofiber-marketplace/src/helpers"
+	"gofiber-marketplace/src/middlewares"
 	"gofiber-marketplace/src/models"
 	"math"
 	"strconv"
@@ -107,7 +108,7 @@ func GetDetailProduct(c *fiber.Ctx) error {
 }
 
 func CreateProduct(c *fiber.Ctx) error {
-	auth := helpers.UserLocals(c)
+	auth := middlewares.UserLocals(c)
 	if role := auth["role"].(string); role != "seller" {
 		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
 			"status":     "forbidden",
@@ -126,9 +127,9 @@ func CreateProduct(c *fiber.Ctx) error {
 		})
 	}
 
-	product := helpers.XSSMiddleware(&newProduct).(*models.Product)
+	product := middlewares.XSSMiddleware(&newProduct).(*models.Product)
 
-	if errors := helpers.ValidateStruct(product); len(errors) > 0 {
+	if errors := helpers.StructValidation(product); len(errors) > 0 {
 		return c.Status(fiber.StatusUnprocessableEntity).JSON(fiber.Map{
 			"status":     "unprocessable entity",
 			"statusCode": 422,
@@ -169,7 +170,7 @@ func CreateProduct(c *fiber.Ctx) error {
 }
 
 func UpdateProduct(c *fiber.Ctx) error {
-	auth := helpers.UserLocals(c)
+	auth := middlewares.UserLocals(c)
 	if role := auth["role"].(string); role != "seller" {
 		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
 			"status":     "forbidden",
@@ -205,9 +206,9 @@ func UpdateProduct(c *fiber.Ctx) error {
 		})
 	}
 
-	product := helpers.XSSMiddleware(&updatedProduct).(*models.Product)
+	product := middlewares.XSSMiddleware(&updatedProduct).(*models.Product)
 
-	if errors := helpers.ValidateStruct(product); len(errors) > 0 {
+	if errors := helpers.StructValidation(product); len(errors) > 0 {
 		return c.Status(fiber.StatusUnprocessableEntity).JSON(fiber.Map{
 			"status":     "unprocessable entity",
 			"statusCode": 422,
@@ -248,7 +249,7 @@ func UpdateProduct(c *fiber.Ctx) error {
 }
 
 func DeleteProduct(c *fiber.Ctx) error {
-	auth := helpers.UserLocals(c)
+	auth := middlewares.UserLocals(c)
 	if role := auth["role"].(string); role != "seller" {
 		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
 			"status":     "forbidden",

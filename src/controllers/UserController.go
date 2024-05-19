@@ -2,6 +2,7 @@ package controllers
 
 import (
 	"gofiber-marketplace/src/helpers"
+	"gofiber-marketplace/src/middlewares"
 	"gofiber-marketplace/src/models"
 	"os"
 
@@ -27,8 +28,8 @@ func RegisterUser(c *fiber.Ctx) error {
 		})
 	}
 
-	user := helpers.XSSMiddleware(&register).(*Register)
-	if authErrors := helpers.ValidatePassword(user.Password, helpers.ValidateStruct(user)); len(authErrors) > 0 {
+	user := middlewares.XSSMiddleware(&register).(*Register)
+	if authErrors := helpers.PasswordValidation(user.Password, helpers.StructValidation(user)); len(authErrors) > 0 {
 		return c.Status(fiber.StatusUnprocessableEntity).JSON(fiber.Map{
 			"status":     "unprocessable entity",
 			"statusCode": 422,
@@ -116,8 +117,8 @@ func LoginUser(c *fiber.Ctx) error {
 		})
 	}
 
-	user := helpers.XSSMiddleware(&login).(*models.User)
-	if authErrors := helpers.ValidatePassword(user.Password, helpers.ValidateStruct(user)); len(authErrors) > 0 {
+	user := middlewares.XSSMiddleware(&login).(*models.User)
+	if authErrors := helpers.PasswordValidation(user.Password, helpers.StructValidation(user)); len(authErrors) > 0 {
 		return c.Status(fiber.StatusUnprocessableEntity).JSON(fiber.Map{
 			"status":     "unprocessable entity",
 			"statusCode": 422,

@@ -2,6 +2,7 @@ package controllers
 
 import (
 	"gofiber-marketplace/src/helpers"
+	"gofiber-marketplace/src/middlewares"
 	"gofiber-marketplace/src/models"
 	"strconv"
 
@@ -9,15 +10,6 @@ import (
 )
 
 func GetSellers(c *fiber.Ctx) error {
-	auth := helpers.UserLocals(c)
-	if role := auth["role"].(string); role != "seller" {
-		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
-			"status":     "forbidden",
-			"statusCode": 403,
-			"message":    "Incorrect role",
-		})
-	}
-
 	sellers := models.SelectAllSellers()
 	if len(sellers) == 0 {
 		return c.Status(fiber.StatusNoContent).JSON(fiber.Map{
@@ -77,15 +69,6 @@ func GetSellers(c *fiber.Ctx) error {
 }
 
 func GetDetailSeller(c *fiber.Ctx) error {
-	auth := helpers.UserLocals(c)
-	if role := auth["role"].(string); role != "seller" {
-		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
-			"status":     "forbidden",
-			"statusCode": 403,
-			"message":    "Incorrect role",
-		})
-	}
-
 	id, err := strconv.Atoi(c.Params("id"))
 	if err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
@@ -159,7 +142,7 @@ func GetDetailSeller(c *fiber.Ctx) error {
 }
 
 func GetSellerProfile(c *fiber.Ctx) error {
-	auth := helpers.UserLocals(c)
+	auth := middlewares.UserLocals(c)
 	if role := auth["role"].(string); role != "seller" {
 		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
 			"status":     "forbidden",
@@ -251,7 +234,7 @@ type SellerProfile struct {
 func UpdateSellerProfile(c *fiber.Ctx) error {
 	var profileData SellerProfile
 
-	auth := helpers.UserLocals(c)
+	auth := middlewares.UserLocals(c)
 	if role := auth["role"].(string); role != "seller" {
 		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
 			"status":     "forbidden",
@@ -302,8 +285,8 @@ func UpdateSellerProfile(c *fiber.Ctx) error {
 		})
 	}
 
-	user := helpers.XSSMiddleware(&profileData).(*SellerProfile)
-	if errors := helpers.ValidateStruct(user); len(errors) > 0 {
+	user := middlewares.XSSMiddleware(&profileData).(*SellerProfile)
+	if errors := helpers.StructValidation(user); len(errors) > 0 {
 		return c.Status(fiber.StatusUnprocessableEntity).JSON(fiber.Map{
 			"status":     "unprocessable entity",
 			"statusCode": 422,
@@ -356,7 +339,7 @@ func UpdateSellerProfile(c *fiber.Ctx) error {
 }
 
 func DeleteSeller(c *fiber.Ctx) error {
-	auth := helpers.UserLocals(c)
+	auth := middlewares.UserLocals(c)
 	if role := auth["role"].(string); role != "seller" {
 		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
 			"status":     "forbidden",
