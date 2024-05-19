@@ -84,8 +84,10 @@ Here is a list of available endpoints:
 
 Feel free if you want to check it out:
 
+[Mockup Web Figma](https://www.figma.com/design/F2wIb9WHG4kntUkbFC39OB/Mockup-Web?node-id=0-1&t=yXyuxr2edx3A68Wx-0)
+
 [Air by Cosmtrek](https://github.com/cosmtrek/air)
 
-[GoFiber by Zaki Maliki](https://zakimaliki.gitbook.io/gofiber)
+[GoFiber Gitbook by Zaki Maliki](https://zakimaliki.gitbook.io/gofiber)
 
-[Mockup Web Figma](https://www.figma.com/design/F2wIb9WHG4kntUkbFC39OB/Mockup-Web?node-id=0-1&t=yXyuxr2edx3A68Wx-0)
+[Refresh Tokens Auth by Tanveer Hassan](https://medium.com/monstar-lab-bangladesh-engineering/jwt-auth-in-go-part-2-refresh-tokens-d334777ca8a0)

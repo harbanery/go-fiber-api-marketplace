@@ -8,9 +8,9 @@ import (
 
 type User struct {
 	gorm.Model
-	Email    string `json:"email"`
-	Password string `json:"password"`
-	Role     string `json:"role"`
+	Email    string `json:"email" validate:"required,email"`
+	Password string `json:"password" validate:"required,min=8,max=20"`
+	Role     string `json:"role" validate:"oneof=seller customer"`
 }
 
 func SelectAllUsers() []*User {

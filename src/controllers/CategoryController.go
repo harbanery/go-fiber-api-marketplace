@@ -1,8 +1,8 @@
 package controllers
 
 import (
+	"gofiber-marketplace/src/helpers"
 	"gofiber-marketplace/src/models"
-	"reflect"
 	"strconv"
 	"strings"
 
@@ -10,7 +10,10 @@ import (
 )
 
 func GetAllCategories(c *fiber.Ctx) error {
-	categories := models.SelectAllCategories()
+	keyword := c.Query("search")
+	sort := helpers.GetSortParams(c.Query("sorting"), c.Query("orderBy"))
+
+	categories := models.SelectAllCategories(keyword, sort)
 	if len(categories) == 0 {
 		return c.Status(fiber.StatusNoContent).JSON(fiber.Map{
 			"status":     "no content",
@@ -29,7 +32,7 @@ func GetAllCategories(c *fiber.Ctx) error {
 				"updated_at": product.UpdatedAt,
 				"name":       product.Name,
 				"price":      product.Price,
-				"photo":      product.URLImage,
+				"photo":      product.Image,
 				"size":       product.Size,
 				"color":      product.Color,
 				"rating":     product.Rating,
@@ -41,7 +44,7 @@ func GetAllCategories(c *fiber.Ctx) error {
 			"created_at": category.CreatedAt,
 			"updated_at": category.UpdatedAt,
 			"name":       category.Name,
-			"image":      category.URLImage,
+			"image":      category.Image,
 			"slug":       category.Slug,
 			"products":   products,
 		}
@@ -82,7 +85,7 @@ func GetCategoryById(c *fiber.Ctx) error {
 			"updated_at": product.UpdatedAt,
 			"name":       product.Name,
 			"price":      product.Price,
-			"photo":      product.URLImage,
+			"photo":      product.Image,
 			"size":       product.Size,
 			"color":      product.Color,
 			"rating":     product.Rating,
@@ -94,7 +97,7 @@ func GetCategoryById(c *fiber.Ctx) error {
 		"created_at": category.CreatedAt,
 		"updated_at": category.UpdatedAt,
 		"name":       category.Name,
-		"image":      category.URLImage,
+		"image":      category.Image,
 		"slug":       category.Slug,
 		"products":   products,
 	}
@@ -108,8 +111,8 @@ func GetCategoryById(c *fiber.Ctx) error {
 }
 
 func CreateCategory(c *fiber.Ctx) error {
-	var category models.Category
-	if err := c.BodyParser(&category); err != nil {
+	var newCategory models.Category
+	if err := c.BodyParser(&newCategory); err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 			"status":     "bad request",
 			"statusCode": 400,
@@ -117,26 +120,22 @@ func CreateCategory(c *fiber.Ctx) error {
 		})
 	}
 
-	if reflect.TypeOf(category.Name).Kind() != reflect.String {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"status":     "bad request",
-			"statusCode": 400,
-			"message":    "Category name must be string",
-		})
-	} else if category.Name == "" {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"status":     "bad request",
-			"statusCode": 400,
-			"message":    "Category name cannot be empty",
+	if newCategory.Slug == "" || newCategory.Slug != strings.ReplaceAll(strings.ToLower(newCategory.Name), " ", "") {
+		newCategory.Slug = strings.ReplaceAll(strings.ToLower(newCategory.Name), " ", "")
+	}
+
+	category := helpers.XSSMiddleware(&newCategory).(*models.Category)
+
+	if errors := helpers.ValidateStruct(category); len(errors) > 0 {
+		return c.Status(fiber.StatusUnprocessableEntity).JSON(fiber.Map{
+			"status":     "unprocessable entity",
+			"statusCode": 422,
+			"message":    "There are bad request or validation",
+			"errors":     errors,
 		})
 	}
 
-	if category.Slug == "" || category.Slug != strings.ReplaceAll(strings.ToLower(category.Name), " ", "") {
-		category.Slug = strings.ReplaceAll(strings.ToLower(category.Name), " ", "")
-	}
-
-	existingCategory := models.SelectCategoryBySlug(category.Slug)
-	if existingCategory.ID != 0 {
+	if existCategory := models.SelectCategoryBySlug(category.Slug); existCategory.ID != 0 {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 			"status":     "bad request",
 			"statusCode": 400,
@@ -144,7 +143,7 @@ func CreateCategory(c *fiber.Ctx) error {
 		})
 	}
 
-	if err := models.CreateCategory(&category); err != nil {
+	if err := models.CreateCategory(category); err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"status":     "server error",
 			"statusCode": 500,
@@ -169,8 +168,7 @@ func UpdateCategory(c *fiber.Ctx) error {
 		})
 	}
 
-	category := models.SelectCategoryById(id)
-	if category.ID == 0 {
+	if category := models.SelectCategoryById(id); category.ID == 0 {
 		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
 			"status":     "not found",
 			"statusCode": 404,
@@ -186,38 +184,24 @@ func UpdateCategory(c *fiber.Ctx) error {
 			"statusCode": 400,
 			"message":    "Invalid request body",
 		})
-
 	}
 
-	if reflect.TypeOf(updatedCategory.Name).Kind() != reflect.String {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"status":     "bad request",
-			"statusCode": 400,
-			"message":    "Category name must be string",
-		})
-	} else if updatedCategory.Name == "" {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"status":     "bad request",
-			"statusCode": 400,
-			"message":    "Category name cannot be empty",
-		})
-	}
-
-	// if updatedCategory.URLImage == "" {
-	// 	return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-	// 		"status":     "bad request",
-	// 		"statusCode": 400,
-	// 		"message":    "Category photo cannot be empty",
-	// 	})
-	// }
-
-	// slug harus sama dengan nama dengan huruf kecil dan tanpa spasi
 	if updatedCategory.Slug == "" || updatedCategory.Slug != strings.ReplaceAll(strings.ToLower(updatedCategory.Name), " ", "") {
 		updatedCategory.Slug = strings.ReplaceAll(strings.ToLower(updatedCategory.Name), " ", "")
 	}
 
-	existingCategory := models.SelectCategoryBySlug(updatedCategory.Slug)
-	if existingCategory.ID != 0 && existingCategory.ID != updatedCategory.ID {
+	category := helpers.XSSMiddleware(&updatedCategory).(*models.Category)
+
+	if errors := helpers.ValidateStruct(category); len(errors) > 0 {
+		return c.Status(fiber.StatusUnprocessableEntity).JSON(fiber.Map{
+			"status":     "unprocessable entity",
+			"statusCode": 422,
+			"message":    "There are bad request or validation",
+			"errors":     errors,
+		})
+	}
+
+	if existCategory := models.SelectCategoryBySlug(category.Slug); existCategory.ID != 0 && existCategory.ID != category.ID {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 			"status":     "bad request",
 			"statusCode": 400,
@@ -225,7 +209,7 @@ func UpdateCategory(c *fiber.Ctx) error {
 		})
 	}
 
-	if err := models.UpdateCategory(id, &updatedCategory); err != nil {
+	if err := models.UpdateCategory(id, category); err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"status":     "server error",
 			"statusCode": 500,

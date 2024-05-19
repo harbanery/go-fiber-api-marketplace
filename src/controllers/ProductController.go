@@ -2,18 +2,22 @@ package controllers
 
 import (
 	"fmt"
+	"gofiber-marketplace/src/helpers"
 	"gofiber-marketplace/src/models"
-	"reflect"
+	"math"
 	"strconv"
-	"strings"
-
-	// "strings"
 
 	"github.com/gofiber/fiber/v2"
 )
 
 func GetAllProduct(c *fiber.Ctx) error {
-	products := models.SelectAllProducts()
+	keyword := c.Query("search")
+	sort := helpers.GetSortParams(c.Query("sorting"), c.Query("orderBy"))
+	page, limit, offset := helpers.GetPaginationParams(c.Query("limit"), c.Query("page"))
+	totalData := models.CountData(keyword)
+	totalPage := math.Ceil(float64(totalData) / float64(limit))
+
+	products := models.SelectAllProducts(keyword, sort, limit, offset)
 	if len(products) == 0 {
 		return c.Status(fiber.StatusNoContent).JSON(fiber.Map{
 			"status":     "no content",
@@ -33,7 +37,7 @@ func GetAllProduct(c *fiber.Ctx) error {
 			"brand_id":      product.SellerID,
 			"brand_name":    product.Seller.Name,
 			"name":          product.Name,
-			"photo":         product.URLImage,
+			"photo":         product.Image,
 			"rating":        product.Rating,
 			"price":         product.Price,
 			"size":          product.Size,
@@ -46,9 +50,13 @@ func GetAllProduct(c *fiber.Ctx) error {
 
 	// return c.JSON(products)
 	return c.Status(fiber.StatusOK).JSON(fiber.Map{
-		"status":     "success",
-		"statusCode": 200,
-		"data":       resultProducts,
+		"status":      "success",
+		"statusCode":  200,
+		"data":        resultProducts,
+		"currentPage": page,
+		"limit":       limit,
+		"totalData":   totalData,
+		"totalPage":   totalPage,
 	})
 }
 
@@ -80,7 +88,7 @@ func GetDetailProduct(c *fiber.Ctx) error {
 		"brand_id":      product.SellerID,
 		"brand_name":    product.Seller.Name,
 		"name":          product.Name,
-		"photo":         product.URLImage,
+		"photo":         product.Image,
 		"rating":        product.Rating,
 		"price":         product.Price,
 		"size":          product.Size,
@@ -99,6 +107,15 @@ func GetDetailProduct(c *fiber.Ctx) error {
 }
 
 func CreateProduct(c *fiber.Ctx) error {
+	auth := helpers.UserLocals(c)
+	if role := auth["role"].(string); role != "seller" {
+		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
+			"status":     "forbidden",
+			"statusCode": 403,
+			"message":    "Incorrect role",
+		})
+	}
+
 	var newProduct models.Product
 
 	if err := c.BodyParser(&newProduct); err != nil {
@@ -109,151 +126,34 @@ func CreateProduct(c *fiber.Ctx) error {
 		})
 	}
 
-	if reflect.TypeOf(newProduct.Name).Kind() != reflect.String {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"status":     "bad request",
-			"statusCode": 400,
-			"message":    "Product name must be string",
-		})
-	} else if newProduct.Name == "" {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"status":     "bad request",
-			"statusCode": 400,
-			"message":    "Product name cannot be empty",
+	product := helpers.XSSMiddleware(&newProduct).(*models.Product)
+
+	if errors := helpers.ValidateStruct(product); len(errors) > 0 {
+		return c.Status(fiber.StatusUnprocessableEntity).JSON(fiber.Map{
+			"status":     "unprocessable entity",
+			"statusCode": 422,
+			"message":    "Validation failed",
+			"errors":     errors,
 		})
 	}
 
-	if _, err := strconv.ParseFloat(fmt.Sprintf("%f", newProduct.Price), 64); err != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"status":     "bad request",
-			"statusCode": 400,
-			"message":    "Product price must be float",
-		})
-	} else if newProduct.Price <= 0 {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"status":     "bad request",
-			"statusCode": 400,
-			"message":    "Product price must be greater than zero",
+	if category := models.SelectCategoryById(int(product.CategoryID)); category.ID == 0 {
+		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
+			"status":     "not found",
+			"statusCode": 404,
+			"message":    "Category not found",
 		})
 	}
 
-	if _, err := strconv.Atoi(fmt.Sprintf("%d", newProduct.Stock)); err != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"status":     "bad request",
-			"statusCode": 400,
-			"message":    "Product price must be integer",
-		})
-	} else if newProduct.Stock < 0 {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"status":     "bad request",
-			"statusCode": 400,
-			"message":    "Product stock cannot be negative",
+	if seller := models.SelectSellerById(int(product.SellerID)); seller.ID == 0 {
+		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
+			"status":     "not found",
+			"statusCode": 404,
+			"message":    "Seller not found",
 		})
 	}
 
-	if _, err := strconv.Atoi(fmt.Sprintf("%d", newProduct.Size)); err != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"status":     "bad request",
-			"statusCode": 400,
-			"message":    "Product size must be integer",
-		})
-	} else if newProduct.Size <= 0 {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"status":     "bad request",
-			"statusCode": 400,
-			"message":    "Product size cannot be empty or negative",
-		})
-	}
-
-	if reflect.TypeOf(newProduct.Color).Kind() != reflect.String {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"status":     "bad request",
-			"statusCode": 400,
-			"message":    "Product color must be string",
-		})
-	} else if newProduct.Color == "" {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"status":     "bad request",
-			"statusCode": 400,
-			"message":    "Product color cannot be empty",
-		})
-	}
-
-	// rating is meant for customer so no rating validation
-	// if _, err := strconv.Atoi(fmt.Sprintf("%d", newProduct.Rating)); err != nil {
-	// 	return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-	// 		"status":     "bad request",
-	// 		"statusCode": 400,
-	// 		"message":    "Product rating must be integer",
-	// 	})
-	// } else if newProduct.Rating <= 0 {
-	// 	return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-	// 		"status":     "bad request",
-	// 		"statusCode": 400,
-	// 		"message":    "Product rating cannot be empty or negative",
-	// 	})
-	// }
-
-	if reflect.TypeOf(newProduct.Condition).Kind() != reflect.String {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"status":     "bad request",
-			"statusCode": 400,
-			"message":    "Product condition must be string",
-		})
-	}
-
-	if newProduct.Condition == "" {
-		// newProduct.Condition = "new"
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"status":     "bad request",
-			"statusCode": 400,
-			"message":    "Product condition cannot be empty",
-		})
-	} else {
-		if strings.ToLower(string(newProduct.Condition)) != "new" && strings.ToLower(string(newProduct.Condition)) != "used" {
-			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-				"status":     "bad request",
-				"statusCode": 400,
-				"message":    "Product condition not right answer",
-			})
-		}
-	}
-
-	if newProduct.CategoryID != 0 {
-		category := models.SelectCategoryById(int(newProduct.CategoryID))
-		if category.ID == 0 {
-			return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
-				"status":     "not found",
-				"statusCode": 404,
-				"message":    "Category not found",
-			})
-		}
-	} else {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"status":     "bad request",
-			"statusCode": 400,
-			"message":    "Category cannot be empty",
-		})
-	}
-
-	if newProduct.SellerID != 0 {
-		seller := models.SelectSellerById(int(newProduct.SellerID))
-		if seller.ID == 0 {
-			return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
-				"status":     "not found",
-				"statusCode": 404,
-				"message":    "Seller not found",
-			})
-		}
-	} else {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"status":     "bad request",
-			"statusCode": 400,
-			"message":    "Seller cannot be empty",
-		})
-	}
-
-	if err := models.CreateProduct(&newProduct); err != nil {
+	if err := models.CreateProduct(product); err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"status":     "server error",
 			"statusCode": 500,
@@ -269,6 +169,15 @@ func CreateProduct(c *fiber.Ctx) error {
 }
 
 func UpdateProduct(c *fiber.Ctx) error {
+	auth := helpers.UserLocals(c)
+	if role := auth["role"].(string); role != "seller" {
+		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
+			"status":     "forbidden",
+			"statusCode": 403,
+			"message":    "Incorrect role",
+		})
+	}
+
 	id, err := strconv.Atoi(c.Params("id"))
 	if err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
@@ -278,8 +187,7 @@ func UpdateProduct(c *fiber.Ctx) error {
 		})
 	}
 
-	product := models.SelectProductById(id)
-	if product.ID == 0 {
+	if product := models.SelectProductById(id); product.ID == 0 {
 		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
 			"status":     "not found",
 			"statusCode": 404,
@@ -297,150 +205,34 @@ func UpdateProduct(c *fiber.Ctx) error {
 		})
 	}
 
-	if reflect.TypeOf(updatedProduct.Name).Kind() != reflect.String {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"status":     "bad request",
-			"statusCode": 400,
-			"message":    "Product name must be string",
-		})
-	} else if updatedProduct.Name == "" {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"status":     "bad request",
-			"statusCode": 400,
-			"message":    "Product name cannot be empty",
+	product := helpers.XSSMiddleware(&updatedProduct).(*models.Product)
+
+	if errors := helpers.ValidateStruct(product); len(errors) > 0 {
+		return c.Status(fiber.StatusUnprocessableEntity).JSON(fiber.Map{
+			"status":     "unprocessable entity",
+			"statusCode": 422,
+			"message":    "Validation failed",
+			"errors":     errors,
 		})
 	}
 
-	if _, err := strconv.ParseFloat(fmt.Sprintf("%f", updatedProduct.Price), 64); err != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"status":     "bad request",
-			"statusCode": 400,
-			"message":    "Product price must be float",
-		})
-	} else if updatedProduct.Price <= 0 {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"status":     "bad request",
-			"statusCode": 400,
-			"message":    "Product price must be greater than zero",
+	if category := models.SelectCategoryById(int(product.CategoryID)); category.ID == 0 {
+		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
+			"status":     "not found",
+			"statusCode": 404,
+			"message":    "Category not found",
 		})
 	}
 
-	if _, err := strconv.Atoi(fmt.Sprintf("%d", updatedProduct.Stock)); err != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"status":     "bad request",
-			"statusCode": 400,
-			"message":    "Product stock must be integer",
-		})
-	} else if updatedProduct.Stock < 0 {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"status":     "bad request",
-			"statusCode": 400,
-			"message":    "Product stock cannot be negative",
+	if seller := models.SelectSellerById(int(product.SellerID)); seller.ID == 0 {
+		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
+			"status":     "not found",
+			"statusCode": 404,
+			"message":    "Seller not found",
 		})
 	}
 
-	if _, err := strconv.Atoi(fmt.Sprintf("%d", updatedProduct.Size)); err != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"status":     "bad request",
-			"statusCode": 400,
-			"message":    "Product size must be integer",
-		})
-	} else if updatedProduct.Size <= 0 {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"status":     "bad request",
-			"statusCode": 400,
-			"message":    "Product size cannot be empty or negative",
-		})
-	}
-
-	if reflect.TypeOf(updatedProduct.Color).Kind() != reflect.String {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"status":     "bad request",
-			"statusCode": 400,
-			"message":    "Product color must be string",
-		})
-	} else if updatedProduct.Color == "" {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"status":     "bad request",
-			"statusCode": 400,
-			"message":    "Product color cannot be empty",
-		})
-	}
-
-	// if _, err := strconv.Atoi(fmt.Sprintf("%d", updatedProduct.Rating)); err != nil {
-	// 	return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-	// 		"status":     "bad request",
-	// 		"statusCode": 400,
-	// 		"message":    "Product rating must be integer",
-	// 	})
-	// } else if updatedProduct.Rating <= 0 {
-	// 	return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-	// 		"status":     "bad request",
-	// 		"statusCode": 400,
-	// 		"message":    "Product rating cannot be empty or negative",
-	// 	})
-	// }
-
-	if reflect.TypeOf(updatedProduct.Condition).Kind() != reflect.String {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"status":     "bad request",
-			"statusCode": 400,
-			"message":    "Product condition must be string",
-		})
-	}
-
-	if updatedProduct.Condition == "" {
-		// updatedProduct.Condition = "new"
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"status":     "bad request",
-			"statusCode": 400,
-			"message":    "Product condition cannot be empty",
-		})
-	} else {
-		if strings.ToLower(string(updatedProduct.Condition)) != "new" && strings.ToLower(string(updatedProduct.Condition)) != "used" {
-			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-				"status":     "bad request",
-				"statusCode": 400,
-				"message":    "Product condition not right answer",
-			})
-		}
-	}
-
-	if updatedProduct.CategoryID != 0 {
-		category := models.SelectCategoryById(int(updatedProduct.CategoryID))
-		if category.ID == 0 {
-			return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
-				"status":     "not found",
-				"statusCode": 404,
-				"message":    "Category not found",
-			})
-		}
-	} else {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"status":     "bad request",
-			"statusCode": 400,
-			"message":    "Category cannot be empty",
-		})
-	}
-
-	if updatedProduct.SellerID != 0 {
-		seller := models.SelectSellerById(int(updatedProduct.SellerID))
-		if seller.ID == 0 {
-			return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
-				"status":     "not found",
-				"statusCode": 404,
-				"message":    "Seller not found",
-			})
-		}
-	} else {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"status":     "bad request",
-			"statusCode": 400,
-			"message":    "Seller cannot be empty",
-		})
-	}
-
-	if err := models.UpdateProduct(id, &updatedProduct); err != nil {
+	if err := models.UpdateProduct(id, product); err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"status":     "server error",
 			"statusCode": 500,
@@ -456,6 +248,15 @@ func UpdateProduct(c *fiber.Ctx) error {
 }
 
 func DeleteProduct(c *fiber.Ctx) error {
+	auth := helpers.UserLocals(c)
+	if role := auth["role"].(string); role != "seller" {
+		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
+			"status":     "forbidden",
+			"statusCode": 403,
+			"message":    "Incorrect role",
+		})
+	}
+
 	id, err := strconv.Atoi(c.Params("id"))
 	if err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{

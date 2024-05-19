@@ -1,129 +1,29 @@
 package controllers
 
 import (
+	"gofiber-marketplace/src/helpers"
 	"gofiber-marketplace/src/models"
-	"reflect"
 	"strconv"
 
 	"github.com/gofiber/fiber/v2"
 )
 
-func SellerRegister(c *fiber.Ctx) error {
-	var newUser models.User
-	var newSeller models.Seller
-	var registrationData struct {
-		Name     string `json:"name"`
-		Email    string `json:"email"`
-		Phone    string `json:"phone"`
-		Password string `json:"password"`
-	}
-
-	if err := c.BodyParser(&registrationData); err != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"status":     "bad request",
-			"statusCode": 400,
-			"message":    "Invalid request body",
-		})
-	}
-
-	if reflect.TypeOf(registrationData.Name).Kind() != reflect.String {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"status":     "bad request",
-			"statusCode": 400,
-			"message":    "Name must be string",
-		})
-	} else if registrationData.Name == "" {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"status":     "bad request",
-			"statusCode": 400,
-			"message":    "Name cannot be empty",
-		})
-	} else {
-		newSeller.Name = registrationData.Name
-	}
-
-	if reflect.TypeOf(registrationData.Email).Kind() != reflect.String {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"status":     "bad request",
-			"statusCode": 400,
-			"message":    "Email must be string",
-		})
-	} else if registrationData.Email == "" {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"status":     "bad request",
-			"statusCode": 400,
-			"message":    "Email cannot be empty",
-		})
-	} else {
-		existingUser := models.SelectUserbyEmail(registrationData.Email)
-		if existingUser.ID != 0 {
-			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-				"status":     "bad request",
-				"statusCode": 400,
-				"message":    "Email already exists",
-			})
-		} else {
-			newUser.Email = registrationData.Email
-		}
-	}
-
-	if registrationData.Phone == "" {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"status":     "bad request",
-			"statusCode": 400,
-			"message":    "Phone cannot be empty",
-		})
-	} else {
-		newSeller.Phone = registrationData.Phone
-	}
-
-	if registrationData.Password == "" {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"status":     "bad request",
-			"statusCode": 400,
-			"message":    "Password cannot be empty",
-		})
-	} else {
-		newUser.Password = registrationData.Password
-	}
-
-	if newUser.Role != "seller" {
-		newUser.Role = "seller"
-	}
-
-	userId, err := models.CreateUser(&newUser)
-	if err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-			"status":     "server error",
-			"statusCode": 500,
-			"message":    "Failed to create user",
-		})
-	} else {
-		newSeller.UserID = userId
-	}
-
-	if err := models.CreateSeller(&newSeller); err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-			"status":     "server error",
-			"statusCode": 500,
-			"message":    "Failed to create seller",
-		})
-	}
-
-	return c.Status(fiber.StatusCreated).JSON(fiber.Map{
-		"status":     "success",
-		"statusCode": 200,
-		"message":    "User created successfully",
-	})
-}
-
 func GetSellers(c *fiber.Ctx) error {
+	auth := helpers.UserLocals(c)
+	if role := auth["role"].(string); role != "seller" {
+		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
+			"status":     "forbidden",
+			"statusCode": 403,
+			"message":    "Incorrect role",
+		})
+	}
+
 	sellers := models.SelectAllSellers()
 	if len(sellers) == 0 {
 		return c.Status(fiber.StatusNoContent).JSON(fiber.Map{
 			"status":     "no content",
 			"statusCode": 202,
-			"message":    "Product is empty. You should create product",
+			"message":    "Seller is empty",
 		})
 	}
 
@@ -147,7 +47,7 @@ func GetSellers(c *fiber.Ctx) error {
 				"price":         product.Price,
 				"size":          product.Size,
 				"color":         product.Color,
-				"photo":         product.URLImage,
+				"photo":         product.Image,
 				"rating":        product.Rating,
 				"category_name": categoryName,
 			}
@@ -160,7 +60,7 @@ func GetSellers(c *fiber.Ctx) error {
 			"name":       seller.Name,
 			"user_id":    seller.User.ID,
 			"email":      seller.User.Email,
-			"photo":      seller.URLImage,
+			"photo":      seller.Image,
 			"phone":      seller.Phone,
 			"desc":       seller.Description,
 			"role":       seller.User.Role,
@@ -177,7 +77,15 @@ func GetSellers(c *fiber.Ctx) error {
 }
 
 func GetDetailSeller(c *fiber.Ctx) error {
-	// masih id karena belum ada token/auth
+	auth := helpers.UserLocals(c)
+	if role := auth["role"].(string); role != "seller" {
+		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
+			"status":     "forbidden",
+			"statusCode": 403,
+			"message":    "Incorrect role",
+		})
+	}
+
 	id, err := strconv.Atoi(c.Params("id"))
 	if err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
@@ -222,7 +130,7 @@ func GetDetailSeller(c *fiber.Ctx) error {
 			"price":         product.Price,
 			"size":          product.Size,
 			"color":         product.Color,
-			"photo":         product.URLImage,
+			"photo":         product.Image,
 			"rating":        product.Rating,
 			"category_name": categoryName,
 		}
@@ -235,7 +143,7 @@ func GetDetailSeller(c *fiber.Ctx) error {
 		"name":       seller.Name,
 		"user_id":    seller.User.ID,
 		"email":      seller.User.Email,
-		"photo":      seller.URLImage,
+		"photo":      seller.Image,
 		"phone":      seller.Phone,
 		"desc":       seller.Description,
 		"role":       seller.User.Role,
@@ -250,19 +158,18 @@ func GetDetailSeller(c *fiber.Ctx) error {
 	})
 }
 
-func UpdateSellerProfile(c *fiber.Ctx) error {
-	var updatedUser models.User
-	var updatedSeller models.Seller
-	var profileData struct {
-		Name        string `json:"name"`
-		Email       string `json:"email"`
-		Phone       string `json:"phone"`
-		Description string `json:"description"`
-		URLImage    string `json:"url_image"`
+func GetSellerProfile(c *fiber.Ctx) error {
+	auth := helpers.UserLocals(c)
+	if role := auth["role"].(string); role != "seller" {
+		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
+			"status":     "forbidden",
+			"statusCode": 403,
+			"message":    "Incorrect role",
+		})
 	}
 
-	id, err := strconv.Atoi(c.Params("id"))
-	if err != nil {
+	id, ok := auth["id"].(float64)
+	if !ok {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 			"status":     "bad request",
 			"statusCode": 400,
@@ -270,7 +177,7 @@ func UpdateSellerProfile(c *fiber.Ctx) error {
 		})
 	}
 
-	seller := models.SelectSellerById(id)
+	seller := models.SelectSellerByUserId(int(id))
 	if seller.ID == 0 {
 		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
 			"status":     "not found",
@@ -284,6 +191,98 @@ func UpdateSellerProfile(c *fiber.Ctx) error {
 			"status":     "bad request",
 			"statusCode": 400,
 			"message":    "Role of this user is customer or not seller",
+		})
+	}
+
+	products := make([]map[string]interface{}, len(seller.Products))
+	for i, product := range seller.Products {
+		var categoryName string
+		if product.CategoryID != 0 {
+			category := models.SelectCategoryById(int(product.CategoryID))
+			if category.ID != 0 {
+				categoryName = category.Name
+			}
+		}
+
+		products[i] = map[string]interface{}{
+			"id":            product.ID,
+			"created_at":    product.CreatedAt,
+			"updated_at":    product.UpdatedAt,
+			"name":          product.Name,
+			"price":         product.Price,
+			"size":          product.Size,
+			"color":         product.Color,
+			"photo":         product.Image,
+			"rating":        product.Rating,
+			"category_name": categoryName,
+		}
+	}
+
+	resultSeller := map[string]interface{}{
+		"id":         seller.ID,
+		"created_at": seller.CreatedAt,
+		"updated_at": seller.UpdatedAt,
+		"name":       seller.Name,
+		"user_id":    seller.User.ID,
+		"email":      seller.User.Email,
+		"photo":      seller.Image,
+		"phone":      seller.Phone,
+		"desc":       seller.Description,
+		"role":       seller.User.Role,
+		"products":   products,
+	}
+
+	// return c.JSON(product)
+	return c.Status(fiber.StatusOK).JSON(fiber.Map{
+		"status":     "success",
+		"statusCode": 200,
+		"data":       resultSeller,
+	})
+}
+
+type SellerProfile struct {
+	Name        string `json:"name" validate:"required,max=50"`
+	Email       string `json:"email" validate:"required,email"`
+	Image       string `json:"image" validate:"required"`
+	Phone       string `json:"phone" validate:"required,numeric,max=15"`
+	Description string `json:"description" validate:"required"`
+}
+
+func UpdateSellerProfile(c *fiber.Ctx) error {
+	var profileData SellerProfile
+
+	auth := helpers.UserLocals(c)
+	if role := auth["role"].(string); role != "seller" {
+		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
+			"status":     "forbidden",
+			"statusCode": 403,
+			"message":    "Incorrect role",
+		})
+	}
+
+	id, ok := auth["id"].(float64)
+	if !ok {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"status":     "bad request",
+			"statusCode": 400,
+			"message":    "Invalid ID format",
+		})
+	}
+
+	seller := models.SelectSellerByUserId(int(id))
+	if seller.ID == 0 {
+		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
+			"status":     "not found",
+			"statusCode": 404,
+			"message":    "Seller not found",
+		})
+	}
+
+	if seller.User.Role != "seller" {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"status":     "bad request",
+			"statusCode": 400,
+			"message":    "Role of this user is not seller",
 		})
 	}
 
@@ -303,104 +302,71 @@ func UpdateSellerProfile(c *fiber.Ctx) error {
 		})
 	}
 
-	// validasi email
-	if reflect.TypeOf(profileData.Email).Kind() != reflect.String {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"status":     "bad request",
-			"statusCode": 400,
-			"message":    "Email must be string",
+	user := helpers.XSSMiddleware(&profileData).(*SellerProfile)
+	if errors := helpers.ValidateStruct(user); len(errors) > 0 {
+		return c.Status(fiber.StatusUnprocessableEntity).JSON(fiber.Map{
+			"status":     "unprocessable entity",
+			"statusCode": 422,
+			"message":    "Validation failed",
+			"errors":     errors,
 		})
-	} else if profileData.Email == "" {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"status":     "bad request",
-			"statusCode": 400,
-			"message":    "Email cannot be empty",
-		})
-	} else if profileData.Email != seller.User.Email {
-		existingUser := models.SelectUserbyEmail(profileData.Email)
-		if existingUser.ID != 0 {
-			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-				"status":     "bad request",
-				"statusCode": 400,
-				"message":    "Email already exists",
-			})
-		} else {
-			updatedUser.Email = profileData.Email
-		}
-
-		if err := models.UpdateUser(int(seller.User.ID), &updatedUser); err != nil {
-			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-				"status":     "server error",
-				"statusCode": 500,
-				"message":    "Failed to update user",
-			})
-		}
 	}
 
-	if reflect.TypeOf(profileData.Name).Kind() != reflect.String {
+	if existUser := models.SelectUserbyEmail(user.Email); existUser.ID != 0 && existUser.Email != user.Email {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 			"status":     "bad request",
 			"statusCode": 400,
-			"message":    "Name must be string",
+			"message":    "Email already exists",
 		})
-	} else if profileData.Name == "" {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"status":     "bad request",
-			"statusCode": 400,
-			"message":    "Name cannot be empty",
-		})
-	} else {
-		updatedSeller.Name = profileData.Name
 	}
 
-	if profileData.Phone == "" {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"status":     "bad request",
-			"statusCode": 400,
-			"message":    "Phone cannot be empty",
-		})
-	} else {
-		updatedSeller.Phone = profileData.Phone
+	updatedUser := models.User{
+		Email: user.Email,
 	}
 
-	if profileData.Description == "" {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"status":     "bad request",
-			"statusCode": 400,
-			"message":    "Description cannot be empty",
-		})
-	} else {
-		updatedSeller.Description = profileData.Description
+	updatedSeller := models.Seller{
+		Name:        user.Name,
+		Image:       user.Image,
+		Phone:       user.Phone,
+		Description: user.Description,
 	}
 
-	// if profileData.URLImage == "" {
-	// 	return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-	// 		"status":     "bad request",
-	// 		"statusCode": 400,
-	// 		"message":    "URLImage cannot be empty",
-	// 	})
-	// } else {
-	// 	updatedSeller.URLImage = profileData.URLImage
-	// }
+	if err := models.UpdateUser(int(seller.User.ID), &updatedUser); err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"status":     "server error",
+			"statusCode": 500,
+			"message":    "Failed to update user",
+		})
+	}
 
-	if err := models.UpdateSeller(id, &updatedSeller); err != nil {
+	if err := models.UpdateSeller(int(id), &updatedSeller); err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"status":     "server error",
 			"statusCode": 500,
 			"message":    "Failed to update seller",
 		})
-	} else {
-		return c.Status(fiber.StatusOK).JSON(fiber.Map{
-			"status":     "success",
-			"statusCode": 200,
-			"message":    "Seller updated successfully",
-		})
 	}
+
+	return c.Status(fiber.StatusOK).JSON(fiber.Map{
+		"status":     "success",
+		"statusCode": 200,
+		"message":    "Profile updated successfully",
+	})
+
 }
 
 func DeleteSeller(c *fiber.Ctx) error {
-	id, err := strconv.Atoi(c.Params("id"))
-	if err != nil {
+	auth := helpers.UserLocals(c)
+	if role := auth["role"].(string); role != "seller" {
+		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
+			"status":     "forbidden",
+			"statusCode": 403,
+			"message":    "Incorrect role",
+		})
+	}
+
+	id, ok := auth["id"].(float64)
+	if !ok {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 			"status":     "bad request",
 			"statusCode": 400,
@@ -408,7 +374,7 @@ func DeleteSeller(c *fiber.Ctx) error {
 		})
 	}
 
-	seller := models.SelectSellerById(id)
+	seller := models.SelectSellerByUserId(int(id))
 	if seller.ID == 0 {
 		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
 			"status":     "not found",
@@ -433,7 +399,7 @@ func DeleteSeller(c *fiber.Ctx) error {
 		})
 	}
 
-	if err := models.DeleteSeller(id); err != nil {
+	if err := models.DeleteSeller(int(id)); err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"status":     "server error",
 			"statusCode": 500,

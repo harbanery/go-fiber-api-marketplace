@@ -8,15 +8,16 @@ import (
 
 type Category struct {
 	gorm.Model
-	Name     string    `json:"name"`
-	URLImage string    `json:"url_image"`
-	Slug     string    `json:"slug"`
+	Name     string    `json:"name" validate:"required,max=50"`
+	Image    string    `json:"image" validate:"required"`
+	Slug     string    `json:"slug" validate:"required,lowercase"`
 	Products []Product `json:"products"`
 }
 
-func SelectAllCategories() []*Category {
+func SelectAllCategories(keyword, sort string) []*Category {
 	var categories []*Category
-	configs.DB.Preload("Products").Find(&categories)
+	keyword = "%" + keyword + "%"
+	configs.DB.Preload("Products").Order(sort).Where("name LIKE ?", keyword).Find(&categories)
 	return categories
 }
 
