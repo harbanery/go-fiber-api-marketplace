@@ -17,9 +17,10 @@ type Seller struct {
 	Products    []Product `json:"products"`
 }
 
-func SelectAllSellers() []*Seller {
+func SelectAllSellers(keyword, sort string) []*Seller {
 	var sellers []*Seller
-	configs.DB.Preload("User").Preload("Products").Find(&sellers)
+	keyword = "%" + keyword + "%"
+	configs.DB.Preload("User").Preload("Products").Order(sort).Where("name ILIKE ?", keyword).Find(&sellers)
 	return sellers
 }
 

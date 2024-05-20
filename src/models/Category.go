@@ -17,7 +17,7 @@ type Category struct {
 func SelectAllCategories(keyword, sort string) []*Category {
 	var categories []*Category
 	keyword = "%" + keyword + "%"
-	configs.DB.Preload("Products").Order(sort).Where("name LIKE ?", keyword).Find(&categories)
+	configs.DB.Preload("Products").Order(sort).Where("name ILIKE ?", keyword).Find(&categories)
 	return categories
 }
 

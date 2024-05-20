@@ -1,6 +1,7 @@
 package helpers
 
 import (
+	"errors"
 	"fmt"
 	"net/http"
 	"reflect"
@@ -73,7 +74,7 @@ func PasswordValidation(password string, errors []*ErrorResponse) []*ErrorRespon
 
 func SizeUploadValidation(fileSize int64, maxFileSize int64) error {
 	if fileSize > maxFileSize {
-		return fmt.Errorf("file too large")
+		return errors.New("file too large")
 	}
 	return nil
 }
@@ -81,7 +82,7 @@ func SizeUploadValidation(fileSize int64, maxFileSize int64) error {
 func TypeUploadValidation(buffer []byte, validFileTypes []string) error {
 	fileType := http.DetectContentType(buffer)
 	if !isValidFileType(validFileTypes, fileType) {
-		return fmt.Errorf("type of file invalid. only png, jpg, jpeg, and pdf.")
+		return errors.New("type of file invalid; only png, jpg, jpeg, and pdf")
 	}
 	return nil
 }

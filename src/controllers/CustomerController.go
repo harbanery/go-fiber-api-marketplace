@@ -11,15 +11,6 @@ import (
 )
 
 func GetCustomers(c *fiber.Ctx) error {
-	auth := middlewares.UserLocals(c)
-	if role := auth["role"].(string); role != "customer" {
-		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
-			"status":     "forbidden",
-			"statusCode": 403,
-			"message":    "Incorrect role",
-		})
-	}
-
 	customers := models.SelectAllCustomers()
 	if len(customers) == 0 {
 		return c.Status(fiber.StatusNoContent).JSON(fiber.Map{
@@ -102,6 +93,56 @@ func GetDetailCustomer(c *fiber.Ctx) error {
 	})
 }
 
+func GetCustomerProfile(c *fiber.Ctx) error {
+	auth := middlewares.UserLocals(c)
+	if role := auth["role"].(string); role != "customer" {
+		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
+			"status":     "forbidden",
+			"statusCode": 403,
+			"message":    "Incorrect role",
+		})
+	}
+
+	id, ok := auth["id"].(float64)
+	if !ok {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"status":     "bad request",
+			"statusCode": 400,
+			"message":    "Invalid ID format",
+		})
+	}
+
+	customer := models.SelectCustomerByUserId(int(id))
+	if customer.ID == 0 {
+		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
+			"status":     "not found",
+			"statusCode": 404,
+			"message":    "Customer not found",
+		})
+	}
+
+	resultCustomer := map[string]interface{}{
+		"id":            customer.ID,
+		"created_at":    customer.CreatedAt,
+		"updated_at":    customer.UpdatedAt,
+		"name":          customer.Name,
+		"user_id":       customer.User.ID,
+		"email":         customer.User.Email,
+		"photo":         customer.Image,
+		"phone":         customer.Phone,
+		"gender":        customer.Gender,
+		"date_of_birth": customer.DateOfBirth,
+		"role":          customer.User.Role,
+	}
+
+	// return c.JSON(product)
+	return c.Status(fiber.StatusOK).JSON(fiber.Map{
+		"status":     "success",
+		"statusCode": 200,
+		"data":       resultCustomer,
+	})
+}
+
 type CustomerProfile struct {
 	Name        string                `json:"name" validate:"required,max=50"`
 	Email       string                `json:"email" validate:"required,email"`
@@ -114,8 +155,17 @@ type CustomerProfile struct {
 func UpdateCustomerProfile(c *fiber.Ctx) error {
 	var profileData CustomerProfile
 
-	id, err := strconv.Atoi(c.Params("id"))
-	if err != nil {
+	auth := middlewares.UserLocals(c)
+	if role := auth["role"].(string); role != "customer" {
+		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
+			"status":     "forbidden",
+			"statusCode": 403,
+			"message":    "Incorrect role",
+		})
+	}
+
+	id, ok := auth["id"].(float64)
+	if !ok {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 			"status":     "bad request",
 			"statusCode": 400,
@@ -123,28 +173,12 @@ func UpdateCustomerProfile(c *fiber.Ctx) error {
 		})
 	}
 
-	customer := models.SelectCustomerById(id)
+	customer := models.SelectCustomerByUserId(int(id))
 	if customer.ID == 0 {
 		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
 			"status":     "not found",
 			"statusCode": 404,
 			"message":    "Customer not found",
-		})
-	}
-
-	if customer.User.Role != "customer" {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"status":     "bad request",
-			"statusCode": 400,
-			"message":    "Role of this user is not customer",
-		})
-	}
-
-	if customer.UserID == 0 || customer.User.ID == 0 {
-		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
-			"status":     "not found",
-			"statusCode": 404,
-			"message":    "Customer not found the user",
 		})
 	}
 
@@ -166,7 +200,7 @@ func UpdateCustomerProfile(c *fiber.Ctx) error {
 		})
 	}
 
-	if existUser := models.SelectUserbyEmail(user.Email); existUser.ID != 0 && existUser.Email != user.Email {
+	if customer.User.Email != user.Email {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 			"status":     "bad request",
 			"statusCode": 400,
@@ -195,7 +229,7 @@ func UpdateCustomerProfile(c *fiber.Ctx) error {
 		DateOfBirth: parsedDate,
 	}
 
-	if err := models.UpdateUser(int(customer.User.ID), &updatedUser); err != nil {
+	if err := models.UpdateUser(int(id), &updatedUser); err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"status":     "server error",
 			"statusCode": 500,
@@ -203,7 +237,7 @@ func UpdateCustomerProfile(c *fiber.Ctx) error {
 		})
 	}
 
-	if err := models.UpdateCustomer(id, &updatedCustomer); err != nil {
+	if err := models.UpdateCustomer(int(customer.ID), &updatedCustomer); err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"status":     "server error",
 			"statusCode": 500,
@@ -219,8 +253,17 @@ func UpdateCustomerProfile(c *fiber.Ctx) error {
 }
 
 func DeleteCustomer(c *fiber.Ctx) error {
-	id, err := strconv.Atoi(c.Params("id"))
-	if err != nil {
+	auth := middlewares.UserLocals(c)
+	if role := auth["role"].(string); role != "customer" {
+		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
+			"status":     "forbidden",
+			"statusCode": 403,
+			"message":    "Incorrect role",
+		})
+	}
+
+	id, ok := auth["id"].(float64)
+	if !ok {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 			"status":     "bad request",
 			"statusCode": 400,
@@ -228,7 +271,7 @@ func DeleteCustomer(c *fiber.Ctx) error {
 		})
 	}
 
-	customer := models.SelectCustomerById(id)
+	customer := models.SelectCustomerByUserId(int(id))
 	if customer.ID == 0 {
 		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
 			"status":     "not found",
@@ -237,23 +280,7 @@ func DeleteCustomer(c *fiber.Ctx) error {
 		})
 	}
 
-	if customer.User.Role != "customer" {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"status":     "bad request",
-			"statusCode": 400,
-			"message":    "Role of this user is not customer",
-		})
-	}
-
-	if customer.UserID == 0 || customer.User.ID == 0 {
-		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
-			"status":     "not found",
-			"statusCode": 404,
-			"message":    "Customer not found the user",
-		})
-	}
-
-	if err := models.DeleteCustomer(id); err != nil {
+	if err := models.DeleteCustomer(int(customer.ID)); err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"status":     "server error",
 			"statusCode": 500,
@@ -261,7 +288,7 @@ func DeleteCustomer(c *fiber.Ctx) error {
 		})
 	}
 
-	if err := models.DeleteUser(int(customer.User.ID)); err != nil {
+	if err := models.DeleteUser(int(id)); err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"status":     "server error",
 			"statusCode": 500,

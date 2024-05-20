@@ -55,7 +55,14 @@ func UploadFile(c *fiber.Ctx) error {
 		})
 	}
 
-	filePath := helpers.UploadFile(file)
+	filePath, err := helpers.UploadFile(file)
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"status":     "server error",
+			"statusCode": 500,
+			"message":    "Failed to create directory",
+		})
+	}
 	if err := c.SaveFile(file, filePath); err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"status":     "server error",

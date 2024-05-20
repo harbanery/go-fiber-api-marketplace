@@ -28,12 +28,14 @@ func Router(app *fiber.App) {
 	app.Get("/seller/profile", middlewares.JWTMiddleware(), controllers.GetSellerProfile)
 	app.Put("/seller/profile", middlewares.JWTMiddleware(), controllers.UpdateSellerProfile)
 	app.Delete("/seller/profile", middlewares.JWTMiddleware(), controllers.DeleteSeller)
+	app.Put("/seller/profile/photo", middlewares.JWTMiddleware(), controllers.UpdateSellerProfilePhoto)
 
 	// Customer Routes
 	app.Get("/customers", middlewares.JWTMiddleware(), controllers.GetCustomers)
-	app.Get("/customer/:id", middlewares.JWTMiddleware(), controllers.GetDetailCustomer)
-	app.Put("/customer/profile/:id", middlewares.JWTMiddleware(), controllers.UpdateCustomerProfile)
-	app.Delete("/customer/profile/:id", middlewares.JWTMiddleware(), controllers.DeleteCustomer)
+	app.Get("/customers/:id", middlewares.JWTMiddleware(), controllers.GetDetailCustomer)
+	app.Get("/customer/profile", middlewares.JWTMiddleware(), controllers.GetCustomerProfile)
+	app.Put("/customer/profile", middlewares.JWTMiddleware(), controllers.UpdateCustomerProfile)
+	app.Delete("/customer/profile", middlewares.JWTMiddleware(), controllers.DeleteCustomer)
 
 	// User/Auth Routes
 	app.Post("/register", controllers.RegisterUser)

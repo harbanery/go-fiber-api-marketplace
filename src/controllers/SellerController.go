@@ -4,13 +4,17 @@ import (
 	"gofiber-marketplace/src/helpers"
 	"gofiber-marketplace/src/middlewares"
 	"gofiber-marketplace/src/models"
+	"gofiber-marketplace/src/services"
 	"strconv"
 
 	"github.com/gofiber/fiber/v2"
 )
 
 func GetSellers(c *fiber.Ctx) error {
-	sellers := models.SelectAllSellers()
+	keyword := c.Query("search")
+	sort := helpers.GetSortParams(c.Query("sorting"), c.Query("orderBy"))
+
+	sellers := models.SelectAllSellers(keyword, sort)
 	if len(sellers) == 0 {
 		return c.Status(fiber.StatusNoContent).JSON(fiber.Map{
 			"status":     "no content",
@@ -169,14 +173,6 @@ func GetSellerProfile(c *fiber.Ctx) error {
 		})
 	}
 
-	if seller.User.Role != "seller" {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"status":     "bad request",
-			"statusCode": 400,
-			"message":    "Role of this user is customer or not seller",
-		})
-	}
-
 	products := make([]map[string]interface{}, len(seller.Products))
 	for i, product := range seller.Products {
 		var categoryName string
@@ -226,7 +222,6 @@ func GetSellerProfile(c *fiber.Ctx) error {
 type SellerProfile struct {
 	Name        string `json:"name" validate:"required,max=50"`
 	Email       string `json:"email" validate:"required,email"`
-	Image       string `json:"image" validate:"required"`
 	Phone       string `json:"phone" validate:"required,numeric,max=15"`
 	Description string `json:"description" validate:"required"`
 }
@@ -261,22 +256,6 @@ func UpdateSellerProfile(c *fiber.Ctx) error {
 		})
 	}
 
-	if seller.User.Role != "seller" {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"status":     "bad request",
-			"statusCode": 400,
-			"message":    "Role of this user is not seller",
-		})
-	}
-
-	if seller.UserID == 0 || seller.User.ID == 0 {
-		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
-			"status":     "not found",
-			"statusCode": 404,
-			"message":    "Seller not found the user",
-		})
-	}
-
 	if err := c.BodyParser(&profileData); err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 			"status":     "bad request",
@@ -295,7 +274,7 @@ func UpdateSellerProfile(c *fiber.Ctx) error {
 		})
 	}
 
-	if existUser := models.SelectUserbyEmail(user.Email); existUser.ID != 0 && existUser.Email != user.Email {
+	if seller.User.Email != user.Email {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 			"status":     "bad request",
 			"statusCode": 400,
@@ -309,12 +288,11 @@ func UpdateSellerProfile(c *fiber.Ctx) error {
 
 	updatedSeller := models.Seller{
 		Name:        user.Name,
-		Image:       user.Image,
 		Phone:       user.Phone,
 		Description: user.Description,
 	}
 
-	if err := models.UpdateUser(int(seller.User.ID), &updatedUser); err != nil {
+	if err := models.UpdateUser(int(id), &updatedUser); err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"status":     "server error",
 			"statusCode": 500,
@@ -322,7 +300,7 @@ func UpdateSellerProfile(c *fiber.Ctx) error {
 		})
 	}
 
-	if err := models.UpdateSeller(int(id), &updatedSeller); err != nil {
+	if err := models.UpdateSeller(int(seller.ID), &updatedSeller); err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"status":     "server error",
 			"statusCode": 500,
@@ -334,6 +312,108 @@ func UpdateSellerProfile(c *fiber.Ctx) error {
 		"status":     "success",
 		"statusCode": 200,
 		"message":    "Profile updated successfully",
+	})
+
+}
+
+func UpdateSellerProfilePhoto(c *fiber.Ctx) error {
+	auth := middlewares.UserLocals(c)
+	if role := auth["role"].(string); role != "seller" {
+		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
+			"status":     "forbidden",
+			"statusCode": 403,
+			"message":    "Incorrect role",
+		})
+	}
+
+	id, ok := auth["id"].(float64)
+	if !ok {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"status":     "bad request",
+			"statusCode": 400,
+			"message":    "Invalid ID format",
+		})
+	}
+
+	seller := models.SelectSellerByUserId(int(id))
+	if seller.ID == 0 {
+		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
+			"status":     "not found",
+			"statusCode": 404,
+			"message":    "Seller not found",
+		})
+	}
+
+	file, err := c.FormFile("image")
+	if err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"status":     "bad request",
+			"statusCode": 400,
+			"message":    "Failed to upload file",
+		})
+	}
+
+	if err := helpers.SizeUploadValidation(file.Size, 2<<20); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"status":     "bad request",
+			"statusCode": 400,
+			"message":    "File is too large",
+		})
+	}
+
+	fileHeader, err := file.Open()
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"status":     "server error",
+			"statusCode": 500,
+			"message":    "Failed to open file",
+		})
+	}
+	defer fileHeader.Close()
+
+	buffer := make([]byte, 512)
+	if _, err := fileHeader.Read(buffer); err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"status":     "server error",
+			"statusCode": 500,
+			"message":    "Failed to read file",
+		})
+	}
+
+	validFileTypes := []string{"image/png", "image/jpeg", "image/jpg"}
+	if err := helpers.TypeUploadValidation(buffer, validFileTypes); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"status":     "bad request",
+			"statusCode": 400,
+			"message":    "Type of file is invalid",
+		})
+	}
+
+	uploadResult, err := services.UploadCloudinary(c, file)
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"status":     "server error",
+			"statusCode": 500,
+			"message":    "Failed to save file",
+		})
+	}
+
+	updatedSeller := models.Seller{
+		Image: uploadResult.URL,
+	}
+
+	if err := models.UpdateSeller(int(seller.ID), &updatedSeller); err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"status":     "server error",
+			"statusCode": 500,
+			"message":    "Failed to update profile photo",
+		})
+	}
+
+	return c.Status(fiber.StatusOK).JSON(fiber.Map{
+		"status":     "success",
+		"statusCode": 200,
+		"message":    "Profile photo updated successfully",
 	})
 
 }
@@ -366,23 +446,7 @@ func DeleteSeller(c *fiber.Ctx) error {
 		})
 	}
 
-	if seller.User.Role != "seller" {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"status":     "bad request",
-			"statusCode": 400,
-			"message":    "Role of this user is customer or not seller",
-		})
-	}
-
-	if seller.UserID == 0 || seller.User.ID == 0 {
-		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
-			"status":     "not found",
-			"statusCode": 404,
-			"message":    "Seller not found the user",
-		})
-	}
-
-	if err := models.DeleteSeller(int(id)); err != nil {
+	if err := models.DeleteSeller(int(seller.ID)); err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"status":     "server error",
 			"statusCode": 500,
@@ -390,7 +454,7 @@ func DeleteSeller(c *fiber.Ctx) error {
 		})
 	}
 
-	if err := models.DeleteUser(int(seller.User.ID)); err != nil {
+	if err := models.DeleteUser(int(id)); err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"status":     "server error",
 			"statusCode": 500,

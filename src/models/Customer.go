@@ -38,6 +38,12 @@ func SelectCustomerById(id int) *Customer {
 	return &customer
 }
 
+func SelectCustomerByUserId(id int) *Customer {
+	var customer Customer
+	configs.DB.Preload("User").First(&customer, "user_id = ?", id)
+	return &customer
+}
+
 func CreateCustomer(customer *Customer) error {
 	result := configs.DB.Create(&customer)
 	return result.Error
