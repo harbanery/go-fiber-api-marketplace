@@ -3,6 +3,7 @@ package helpers
 import (
 	"errors"
 	"fmt"
+	"mime/multipart"
 	"net/http"
 	"reflect"
 	"regexp"
@@ -13,6 +14,25 @@ import (
 
 type ErrorResponse struct {
 	ErrorMessage string `json:"error_message"`
+}
+
+func VariableRequiredValidation(param any) []*ErrorResponse {
+	var errors []*ErrorResponse
+
+	err := validator.New().Var(param, "required")
+
+	if err != nil {
+		for _, err := range err.(validator.ValidationErrors) {
+			field, _ := reflect.TypeOf(param).Elem().FieldByName(err.Field())
+			fieldName, _ := field.Tag.Lookup("json")
+
+			errors = append(errors, &ErrorResponse{
+				ErrorMessage: fmt.Sprintf("%s must contain %s", fieldName, err.ActualTag()),
+			})
+		}
+	}
+
+	return errors
 }
 
 func StructValidation(param any) []*ErrorResponse {
@@ -66,6 +86,41 @@ func PasswordValidation(password string, errors []*ErrorResponse) []*ErrorRespon
 	} else if !specialPassword.MatchString(password) {
 		errors = append(errors, &ErrorResponse{
 			ErrorMessage: "password must contain at least one special letter",
+		})
+	}
+
+	return errors
+}
+
+func ImageValidation(file *multipart.FileHeader) []*ErrorResponse {
+	var errors []*ErrorResponse
+
+	if file.Size > int64(2<<20) {
+		errors = append(errors, &ErrorResponse{
+			ErrorMessage: "image must contain less than 2 MB",
+		})
+	}
+
+	fileHeader, err := file.Open()
+	if err != nil {
+		errors = append(errors, &ErrorResponse{
+			ErrorMessage: "failed to open image",
+		})
+	}
+	defer fileHeader.Close()
+
+	buffer := make([]byte, 512)
+	if _, err := fileHeader.Read(buffer); err != nil {
+		errors = append(errors, &ErrorResponse{
+			ErrorMessage: "image failed to read image",
+		})
+	}
+
+	fileType := http.DetectContentType(buffer)
+	validFileTypes := []string{"image/png", "image/jpeg", "image/jpg"}
+	if !isValidFileType(validFileTypes, fileType) {
+		errors = append(errors, &ErrorResponse{
+			ErrorMessage: "image must contain .png|.jpg|.jpeg",
 		})
 	}
 

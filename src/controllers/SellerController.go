@@ -353,39 +353,48 @@ func UpdateSellerProfilePhoto(c *fiber.Ctx) error {
 		})
 	}
 
-	if err := helpers.SizeUploadValidation(file.Size, 2<<20); err != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"status":     "bad request",
-			"statusCode": 400,
-			"message":    "File is too large",
-		})
-	}
+	// if err := helpers.SizeUploadValidation(file.Size, 2<<20); err != nil {
+	// 	return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+	// 		"status":     "bad request",
+	// 		"statusCode": 400,
+	// 		"message":    "File is too large",
+	// 	})
+	// }
 
-	fileHeader, err := file.Open()
-	if err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-			"status":     "server error",
-			"statusCode": 500,
-			"message":    "Failed to open file",
-		})
-	}
-	defer fileHeader.Close()
+	// fileHeader, err := file.Open()
+	// if err != nil {
+	// 	return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+	// 		"status":     "server error",
+	// 		"statusCode": 500,
+	// 		"message":    "Failed to open file",
+	// 	})
+	// }
+	// defer fileHeader.Close()
 
-	buffer := make([]byte, 512)
-	if _, err := fileHeader.Read(buffer); err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-			"status":     "server error",
-			"statusCode": 500,
-			"message":    "Failed to read file",
-		})
-	}
+	// buffer := make([]byte, 512)
+	// if _, err := fileHeader.Read(buffer); err != nil {
+	// 	return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+	// 		"status":     "server error",
+	// 		"statusCode": 500,
+	// 		"message":    "Failed to read file",
+	// 	})
+	// }
 
-	validFileTypes := []string{"image/png", "image/jpeg", "image/jpg"}
-	if err := helpers.TypeUploadValidation(buffer, validFileTypes); err != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"status":     "bad request",
-			"statusCode": 400,
-			"message":    "Type of file is invalid",
+	// validFileTypes := []string{"image/png", "image/jpeg", "image/jpg"}
+	// if err := helpers.TypeUploadValidation(buffer, validFileTypes); err != nil {
+	// 	return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+	// 		"status":     "bad request",
+	// 		"statusCode": 400,
+	// 		"message":    "Type of file is invalid",
+	// 	})
+	// }
+
+	if err := helpers.ImageValidation(file); len(err) > 0 {
+		return c.Status(fiber.StatusUnprocessableEntity).JSON(fiber.Map{
+			"status":     "unprocessable entity",
+			"statusCode": 422,
+			"message":    "Validation failed",
+			"errors":     err,
 		})
 	}
 
